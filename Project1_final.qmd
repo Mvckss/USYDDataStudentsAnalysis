@@ -1,0 +1,293 @@
+---
+title: "University of Sydney’s Data Students Analysis with Pandas and R"
+format: 
+  html:
+    mainfont: Spectral
+    fontsize: 14pt
+    embed-resources: true
+    toc: true
+    code-fold: true
+---
+
+# Recommendation/Insight
+
+Exploring the academic and socioeconomic trends among domestic and international students in DATA1X01. In general, international students might be more interested in data science, and pay higher rent than domestic students as they tend to live closer to Sydney Central. Insights may offer useful insights for future campus policy improvements.
+
+# Evidence
+
+## IDA
+
+```{r, warning = FALSE, message = FALSE}
+# Loading the necessary libraries
+library(tidyverse)
+library(plotly)
+library(gganimate)
+library(kableExtra)
+library(dplyr)
+library(gghighlight)
+
+# Reading the datasets
+Data1001Survey = read.csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 1/Data1001Survey_Cleaned.csv")
+Survey_uncleaned = read.csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Project 1/data1001_survey_data.csv")
+```
+
+1.  Source 
+
+Used DATA1X01 census data provided on the Canvas page. It was collected from the survey that DATA1X01’s students filled out in Week 2.
+
+2.  Structure  
+
+```{r, warning = FALSE, message = FALSE}
+str(Survey_uncleaned)
+```
+
+Before cleaning, the dataset had 533 entries and 30 variables (16 numerical, 14 categorical). We then identified the key variables.
+
+RQ1 Key Variables: 
+
+-   student_type   (categorical, either domestic or international) 
+
+-   data_interest   (numerical, a 1-10 scale) 
+
+RQ2 Key Variables: 
+
+-   student_type   
+
+-   commute       (numerical, length of commute in minutes) 
+
+-   rent              (numerical, rent per week in AUD) 
+
+3.  Limitations
+
+-   Some students submitted “unrealistic” data, like claiming to pay \$6000 per week on rent. 
+
+```{r, warning = FALSE, message = FALSE}
+ggplot(Survey_uncleaned) + 
+  geom_point(aes(x=commute, y = rent)) +
+  labs(x="Commute Time", y = 'Rent') +
+  gghighlight(rent > 6000) +
+  geom_label(
+    label = "Big Outlier",
+    x = 40,
+    y = 7000,
+    label.size = 0.35,
+    color = "white",
+    fill="#ff0000"
+  )
+```
+
+-   The survey does not specify commute time via which mode of transportation, which may create outliers.
+
+-   More data, like family income, is needed to fully assess the linear correlation.
+
+4.  Assumptions
+
+-   Any “unrealistic” data is likely from students’ misunderstanding or misinputs.
+
+-   Most students input their commute time on foot, as it is the most common mode of transport.
+
+-   There should be no significant bias.
+
+5.  Data Cleaning
+
+    ```{r, warning = FALSE, message = FALSE}
+    # (Python code used:
+    # 
+    # import pandas as pd
+    # 
+    # df = pd.read_csv("G:/YEAR 1/SEMESTER 1/DATA1001/Coding Stuff/Datasets/Project 1/data1001_survey_data.csv") df.columns = df.columns.str.strip()
+    # 
+    # "Cleaning up the "Country_of_birth" column"
+    # 
+    # df.rename(columns={"country_of_birth _5_TEXT":"COB", "si_1":"stress_level", }, inplace=True) df["COB"] = df['COB'].fillna(df["country_of_birth"])
+    # df['COB'] = df['COB'].replace({ 'Viet Nam': 'Vietnam', 'Republic Of Korea': 'South Korea', 'Republic Of China (Taiwan)': 'Taiwan', 'Hong Kong Sar': 'Hong Kong', 'Nz': 'New Zealand', 'Uk': 'United Kingdom', 'Uae': 'United Arab Emirates', "Việt Nam": "Vietnam", "Korea": "South Korea", "England": "United Kingdom" })
+    # 
+    # "General cleaning, such as dropping duplicates, removing "unrealistic" rows, etc."
+    # 
+    # df = df.drop_duplicates()
+    # df = df.drop(index=[163,85])
+    # df = df.drop(index=df[df["COB"] == "Other Please Specify"].index)
+    # df = df.drop(index=df[df["rent"] > 5000].index)
+    # 
+    # "Dropping unrelated/valueless columns"
+    #
+    # df = df.drop(columns=['Progress','country_of_birth','consent'])
+    # 
+    # "Dropping all rows with blank value(s) in numeric columns"
+    # 
+    # numeric_columns = df.select_dtypes(include=['number']).columns
+    # df = df.dropna(subset=numeric_columns)
+    # 
+    # "Resetting the index after cleaning"
+    #
+    # df.index.name = "student_no"
+    # df = df.reset_index()
+    # df.drop(columns="student_no", inplace = True)
+    ```
+
+-   Removed rows that have duplicates or blank values for data uniformity. 
+
+-   Removed rows that have a ‘rent’ variable value higher than 5000.
+
+-   Removed extraneous columns after filtering like “consent.” 
+
+-   Renamed some columns for better coherence.
+
+## Findings
+
+### Research Question 1
+
+#### [Does a student’s type of enrolment (domestic or international) closely relate to their data interest?]{.underline}
+
+```{r, warning = FALSE, message = FALSE}
+# Creating the boxplot
+ggplot(Data1001Survey, aes(x=data_interest._1, fill=student_type)) + 
+  geom_boxplot() + 
+  theme_classic() + 
+  scale_fill_brewer(palette="Dark2") + 
+  labs(
+    x = "Data interest (1-10)", 
+    title = "Enrolment Type vs Data Interest for DATA1X01 Students at USYD", 
+    caption = "Presented by the Unknown Group", 
+    fill = "Student Type")
+```
+
+```{r, warning = FALSE, message = FALSE}
+# Calculate Q1, Q3, and median for both student groups
+summary = summarise(group_by(Data1001Survey,student_type),
+          Q1 = fivenum(data_interest._1)[2],
+          Q3 = fivenum(data_interest._1)[4],
+          Median = median(data_interest._1)
+          )
+
+# Making the table
+kbl(summary, caption = "Domestic vs International Data Interest Number Comparison") %>%
+  kable_classic(full_width = T, html_font = "spectral")
+```
+
+From the boxplot and table, we hypothesize that international students are more interested in data than domestic students. For internationals, the 25th (5) and 75th percentile (8), and the median (6) are all higher than domestic students (3, 6, and 5 respectively). The IQR for both student groups stand at a 3, which suggests there is not too much variance in the data.
+
+The trend can be explained in certain ways:   
+
+-   Australia, with its elite education system and rapidly growing data industry with strong demand, attracts many young data enthusiasts.  
+
+-   Most internationals come from Asia, where ultra-disciplined teaching systems often overlook data science. Thus, they may pursue data science due to genuine interest developed from childhood, especially considering big data’s popularity in Asia (Cornelli et al., 2021).  
+
+-   International students usually predetermine their majors before university, making emerging subjects like data science especially popular. Meanwhile, domestic students have more freedom to explore diverse disciplines, which leads to more dispersed interests. 
+
+### Research Question 2 (Linear Model)
+
+#### [Is the linear correlation between students' weekly rent and commute time to university impacted by their enrolment type?]{.underline}
+
+```{r, warning = FALSE, message = FALSE}
+# Create initial scatterplot and linear regression line
+s_p = ggplot(Data1001Survey,aes(x=commute,y=rent)) + 
+  geom_point(aes(color=student_type)) + 
+  geom_smooth(method = lm, se = F)+ 
+  scale_color_brewer(palette='Dark2') +
+  labs(
+    title = "Commute Time vs Rent for {closest_state}", 
+    caption = "Presented by the Unknown Group",
+    x = "Commute Time (minutes)",
+    y = "Rent (AUD p/w)") +
+  theme(legend.position = "none") # Remove legend+
+
+# Add animations
+s_p + transition_states(student_type,
+                      transition_length = 2,
+                      state_length = 1) +
+  enter_fade() + 
+  exit_fade()
+```
+
+Correlation coefficient calculation result
+
+```{r, warning = FALSE, message = FALSE}
+# Calculating the overall correlation between commute time and rent
+cor(x = Data1001Survey$commute,y = Data1001Survey$rent, use = "complete.obs")
+```
+
+Residual plots
+
+```{r, warning = FALSE, message = FALSE}
+# Create dataframes for specficially internal and domestic students
+dom = Data1001Survey[Data1001Survey$student_type == "Domestic", ]
+intl = Data1001Survey[Data1001Survey$student_type == "International", ]
+
+# Fit regression models
+model_dom = lm(rent ~ commute, data = dom)
+model_intl = lm(rent ~ commute, data = intl)
+
+# Create residual plots for each student group
+intl_plot = ggplot(model_intl, aes(x = .fitted,y = .resid)) +
+ geom_point() +
+ geom_hline(yintercept = 0,linetype = "dashed",colour = "red") +
+ labs(
+  title="International", 
+  x='Fitted', 
+  y='Residuals')
+# Makes the plot interactive
+ggplotly(intl_plot)
+
+dom_plot = ggplot(model_dom, aes(x = .fitted,y = .resid)) +
+ geom_point() +
+ geom_hline(yintercept = 0,linetype = "dashed",colour = "red") +
+ labs(
+  title="Domestic", 
+  x='Fitted', 
+  y='Residuals')
+ggplotly(dom_plot)
+```
+
+The graphs indicate a slight linear correlation: as both groups’ commute times increase, their rents decrease. Along with a moderate correlation coefficient (r ≈ -0.4) and relatively random residual plots, applying a linear model to the analysis is practical. 
+
+The scatterplots also suggest that most students prefer renting closer to university - a common trend worldwide. 
+
+Interestingly, the internationals’ regression line has a much higher intercept, but similar slope than domestic students, suggesting they choose pricier rentals than domestic students for the same commute times. There might be a few reasons for this: 
+
+-   Numerous domestic students often live with their parents, having to pay little to no rent. 
+
+-   Internationals may view expensive rentals as worthy investments environment-wise, safety-wise, and entertainment-wise, hence the popularity of CBD rentals (Soong & Mu, 2024). 
+
+-   International students, unfamiliar with the local rental market, may overpay – a problem domestic students can easily avoid. 
+
+We did expect a stronger negative correlation between commute time and rent, as seen in Australia (Troy et al., 2019) and globally. Therefore, to achieve better modelling, the sample size still needs significant improvement. 
+
+# Declaration on Professional Ethics
+
+### Shared Professional Values: Respect
+
+-   The data used to produce this project excluded non-consent subjects to pay our respects to the privacy of survey participants, avoiding potential breach of privacy policy.
+
+### Maintaining Confidence in Statistics
+
+-   Provided concrete figures, realistic hypotheses, and listed possible limitations of the analysis to properly and truthfully inform the readers of the research result.
+
+-   Cleaned data to exclude the outliers or irrelevant values, unify data and improve coherence.
+
+-   Acknowledged the limitations.
+
+-   Highlighted areas for possible improvements, aiding future research.
+
+# Acknowledgements
+
+### Other Resources
+
+| Name                                                             | Type of Resource      | URL/Source                                                                                             | Location Used |
+|-----------------|-------------|------------------------------|-------------|
+| Topic 3, 4 & 5 Extensions                                        | Ed Lessons            | <https://edstem.org/au/courses/16787/lessons/>                                                         | RQ1           |
+| *Data Visualization with R in 36 minutes*                        | Youtube Video         | <https://www.youtube.com/watch?v=McL9MMwmIZY>                                                          | RQ1, RQ2      |
+| *Intro to R: Data Cleaning*                                      | Youtube Video         | <https://www.youtube.com/watch?v=G3V2YPaQN34>                                                          | IDA           |
+| *Python for Data Analytics - Full Course for Beginners*          | Youtube Video         | <https://www.youtube.com/watch?v=wUSDVGivd-8>                                                          | IDA           |
+| *Creating Awesome HTML Tables with knittr::kable and kableExtra* | Documentation         | <https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html#Table_Styles> | IDA           |
+| *Add text labels with ggplot2*                                   | Documentation         | <https://r-graph-gallery.com/275-add-text-labels-with-ggplot2.html>                                    | IDA           |
+| *Introduction to gghighlight*                                    | Documentation         | <https://cran.r-project.org/web/packages/gghighlight/vignettes/gghighlight.html>                       | IDA           |
+| Grammarly                                                        | Spell/Grammar Checker | <https://app.grammarly.com>                                                                            | All           |
+
+References 
+
+Cornelli, G., Doerr, S., Gambacorta, L., & Tissot, B. (2021). Big data in Asian central banks. Asian Economic Policy Review, 17(2), 255-269.<https://doi.org/10.1111/aepr.12376> 
+
+Soong, H., & Mu, G. M. (2024, June 1). What the rental market is really like for international students. University World News.<https://www.universityworldnews.com/post.php?story=20240529153842532> 
+
+Troy, L., van den Nouwelant, R., & Randolph, B. (2019). Estimating need and costs of social and affordable housing delivery (pp. 1–20). City Futures Research Centre. https://cityfutures.ada.unsw.edu.au/documents/522/Modelling_costs_of_housing_provision_FINAL.pdf
